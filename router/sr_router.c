@@ -77,7 +77,69 @@ void sr_handlepacket(struct sr_instance* sr,
   assert(interface);
 
   printf("*** -> Received packet of length %d \n",len);
+  uint16_t ethtype = ethertype(packet);
+  if(ethtype == ethertype_arp){
+    print_hdr_arp(packet+sizeof(sr_ethernet_hdr_t));
+    sr_arp_hdr_t *arphdr = (sr_arp_hdr_t *)(packet+sizeof(sr_ethernet_hdr_t));/*get header*/
+    printf("OPCODE %d\n",ntohs(arphdr->ar_op));
+    if(ntohs(arphdr->ar_op) == arp_op_request){
+      printf("**********HELLLOOOOO*********");
+      if(arp_request_check(sr,packet+sizeof(sr_ethernet_hdr_t), interface)){
+        print_hdrs(packet, len);
+        sr_ethernet_hdr_t* ethhdr = (sr_ethernet_hdr_t *)(packet);
+        uint8_t dhostcpy[ETHER_ADDR_LEN];
+        int i = 0;
+        for(i = 0; i<ETHER_ADDR_LEN; i++){
+          ethhdr->ether_dhost[i] = ethhdr->ether_shost[i];
+        }
+        for(i = 0; i<ETHER_ADDR_LEN; i++){
+          ethhdr->ether_shost[i] = arphdr->ar_sha[i];
+        }
+        print_hdrs(packet, len);
+        sr_send_packet(sr, packet, len,interface);
+      }
+    }
+    else{
+      /*place mac address in cache and get queued packets*/
+      struct sr_arpreq *arpreq = sr_arpcache_insert(&sr->cache,arphdr->ar_sha,arphdr->ar_sip);
+      /*walk through the packets*/
+      struct sr_packet* pack_walker = 0;
+      pack_walker = arpreq->packets;
+      while(pack_walker){
+        /*get the ethernet header of the packet*/
+        sr_ethernet_hdr_t* ethpack = (sr_ethernet_hdr_t *)(pack_walker->buf);
+        /*place the MAC address in the ethernet header*/
+        int i =0;
+        for(i=0; i < ETHER_ADDR_LEN; i++){
+          ethpack->ether_dhost[i] = arphdr->ar_sha[i];
+        }
+        /*send the packet*/
+        sr_send_packet(sr, pack_walker->buf, pack_walker->len, pack_walker->iface);
+        pack_walker = pack_walker->next;/*continue onto the next packet*/
+      }
+    }
+  }
+  else{
+    sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(packet+sizeof(sr_ethernet_hdr_t));
+    if(cksum(packet+sizeof(sr_ethernet_hdr_t),len-sizeof(sr_ethernet_hdr_t)) == ip_hdr->ip_sum){
 
+    }
+    else{
+      sr_ethernet_hdr_t* ethhdr = (sr_ethernet_hdr_t *)(packet);
+      uint8_t dhostcpy[ETHER_ADDR_LEN];
+      int i = 0;
+      for(i = 0;i < ETHER_ADDR_LEN; i++){
+        dhostcpy[i] = ethhdr->ether_dhost[i];
+      }
+      for(i = 0; i<ETHER_ADDR_LEN; i++){
+        ethhdr->ether_dhost[i] = ethhdr->ether_shost[i];
+      }
+      for(i = 0; i<ETHER_ADDR_LEN; i++){
+        ethhdr->ether_shost[i] = dhostcpy[i];
+      }
+      
+    }
+  }
   /* fill in code here */
 
 }/* end sr_ForwardPacket */

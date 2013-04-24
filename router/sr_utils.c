@@ -3,7 +3,7 @@
 #include <string.h>
 #include "sr_protocol.h"
 #include "sr_utils.h"
-
+#include "sr_router.h"
 
 uint16_t cksum (const void *_data, int len) {
   const uint8_t *data = _data;
@@ -30,6 +30,24 @@ uint8_t ip_protocol(uint8_t *buf) {
   return iphdr->ip_p;
 }
 
+uint8_t* arp_request_check(struct sr_instance* sr, uint8_t *buf, const char* name) {
+  sr_arp_hdr_t *arphdr = (sr_arp_hdr_t *)(buf);
+  struct sr_if* if_temp = sr_get_interface(sr, name);
+  if(if_temp != 0) {
+    arphdr->ar_op = ntohs(arp_op_reply);
+    /*Swap ips*/
+    uint32_t temp_ip = arphdr->ar_tip;
+    arphdr->ar_tip = arphdr->ar_sip;
+    arphdr->ar_sip = temp_ip;
+    int i;
+    for(i=0; i<ETHER_ADDR_LEN; i++) {
+      arphdr->ar_tha[i] = arphdr->ar_sha[i];
+      arphdr->ar_sha[i] = if_temp->addr[i];
+    }
+    return buf;
+  }
+  return NULL;
+}
 
 /* Prints out formatted Ethernet address, e.g. 00:11:22:33:44:55 */
 void print_addr_eth(uint8_t *addr) {
