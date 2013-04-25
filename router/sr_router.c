@@ -87,7 +87,6 @@ void sr_handlepacket(struct sr_instance* sr,
       if(arp_request_check(sr,packet+sizeof(sr_ethernet_hdr_t), interface)){
         print_hdrs(packet, len);
         sr_ethernet_hdr_t* ethhdr = (sr_ethernet_hdr_t *)(packet);
-        uint8_t dhostcpy[ETHER_ADDR_LEN];
         int i = 0;
         for(i = 0; i<ETHER_ADDR_LEN; i++){
           ethhdr->ether_dhost[i] = ethhdr->ether_shost[i];
@@ -120,11 +119,13 @@ void sr_handlepacket(struct sr_instance* sr,
     }
   }
   else{
+    print_hdrs(packet, len);
     sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(packet+sizeof(sr_ethernet_hdr_t));
-    if(cksum(packet+sizeof(sr_ethernet_hdr_t),len-sizeof(sr_ethernet_hdr_t)) == ip_hdr->ip_sum){
-
+    if(cksum(packet+sizeof(sr_ethernet_hdr_t),ip_hdr->ip_hl*4) == 0xffff){
+      printf("*******YEEEEEEEESSSSSSSSS******");
     }
     else{
+      printf("****NOOOOOOOOOOO*******");
       sr_ethernet_hdr_t* ethhdr = (sr_ethernet_hdr_t *)(packet);
       uint8_t dhostcpy[ETHER_ADDR_LEN];
       int i = 0;
