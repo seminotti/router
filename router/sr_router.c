@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-
 #include "sr_if.h"
 #include "sr_rt.h"
 #include "sr_router.h"
@@ -123,25 +122,48 @@ void sr_handlepacket(struct sr_instance* sr,
     sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(packet+sizeof(sr_ethernet_hdr_t));
     if(cksum(packet+sizeof(sr_ethernet_hdr_t),ip_hdr->ip_hl*4) == 0xffff && ntohs(ip_hdr->ip_len) >= 20){
       struct sr_if* get_iface = sr_get_interface(sr, interface);
-      if(ntohl(ip_hdr->ip_dst) == get_iface->ip){
+      if(ip_hdr->ip_dst == get_iface->ip){
+        uint8_t *nex_buf = packet+sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t);
         if(ip_hdr->ip_p == ip_protocol_icmp){
-          printf("****Total length left**** %d\n", 0);
-          uint8_t *nex_buf = packet+sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t);
-          printf("********Checksum******** %d\n",cksum(nex_buf,4));
-          sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(nex_buf);
-          icmp_hdr->icmp_type = 0;
- /*         flip_ip(packet);*/
+          int nlen = len - sizeof(sr_ethernet_hdr_t) - sizeof(sr_ip_hdr_t);
+          if(cksum(nex_buf,nlen) == 0xffff){
+            sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(nex_buf);
+            icmp_hdr->icmp_type = 0;
+            icmp_hdr->icmp_sum = 0;
+            icmp_hdr->icmp_sum = cksum(nex_buf,nlen);
+            flip_ip(packet);
+            printf("****************Noobie******************\n");
+            print_hdrs(packet, len);
+            sr_send_packet(sr, packet, len, interface);
+          }
+          else{/*icmp checksum fails*/
+
+          }
+        }
+        else{/*protocol is tcp/udp*/
+          memcpy(nex_buf+sizeof(sr_icmp_t3_hdr_t),packet+sizeof(sr_ethernet_hdr_t),(int)(sizeof(sr_ip_hdr_t)+8));
+          sr_icmp_t3_hdr_t *icmp_hdr = (sr_icmp_t3_hdr_t *)(nex_buf);
+          icmp_hdr->icmp_type = 3;
+          icmp_hdr->icmp_code = 3;
+          icmp_hdr->icmp_sum = 0;
+          icmp_hdr->unused = 0;
+          icmp_hdr->next_mtu = 0;
+          icmp_hdr->icmp_sum = cksum(nex_buf,sizeof(sr_icmp_t3_hdr_t));
+          len = sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t)+sizeof(sr_icmp_t3_hdr_t);
+          flip_ip(packet);
+          printf("****************Noobie******************\n");
+          print_hdrs(packet, len);
           sr_send_packet(sr, packet, len, interface);
         }
-        else{
-
-        }
       }
-      else{
-
+      else{/*ip destination is not this router*/
+        ip_hdr->ip_ttl--;
+        ip_hdr->ip_sum = 0;
+        ip_hdr->ip_sum = cksum(packet+sizeof(sr_ethernet_hdr_t),ip_hdr->ip_hl*4);
+        struct sr_rt* route = sr->routing_table;
       }
     }
-    else{
+    else{/*ip header checksum is not correct*/
       printf("****NOOOOOOOOOOO*******");
       sr_ethernet_hdr_t* ethhdr = (sr_ethernet_hdr_t *)(packet);
       uint8_t dhostcpy[ETHER_ADDR_LEN];

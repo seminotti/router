@@ -62,11 +62,36 @@ void flip_ether(uint8_t *buf) {
 
 void flip_ip(uint8_t *buf) {
   flip_ether(buf);
-  sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(buf+sizeof(sr_ethernet_hdr_t *));
+  sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(buf+sizeof(sr_ethernet_hdr_t));
   uint32_t ip_src_cpy = iphdr->ip_src;
   iphdr->ip_src = iphdr->ip_dst;
   iphdr->ip_dst = ip_src_cpy;
 }
+
+/*uint8_t* build_arp_reply(uint32_t sip, uint32_t tip, unsigned char* sha) {
+  unsigned char *buf = 0;
+  if((buf = malloc(sizeof(sr_ethernet_hdr_t))+sizeof(sr_arp_hdr_t)) == 0) {
+	 fprintf(stderr,"Error: out of memory (sr_read_from_server)\n");
+	 return NULL;
+  }
+  sr_ethernet_hdr_t *ethhdr = (sr_arp_ethernet_t *)(buf);
+  int i;  
+  for(i=0; i<ETHER_ADDR_LEN; i++) ethhdr->ether_dhost[i] = 255;
+  for(i=0; i<ETHER_ADDR_LEN; i++) ethhdr->ether_shost[i] = sha[i];
+  ethhdr->ether_type = 2054;
+
+  sr_arp_hdr_t *arphdr = (sr_arp_hdr_t *)(buf);
+  arphdr->ar_hrd = 1;
+  arphdr->ar_pro = 2048;
+  arphdr->ar_hln = 6;
+  arphdr->ar_pln = 4;
+  arphdr->ar_op = 1;
+  for(i=0; i<ETHER_ADDR_LEN; i++) arphdr->ar_sha[i] = sha[i];
+  arphdr->ar_sip = sip;
+  for(i=0; i<ETHER_ADDR_LEN; i++) arphdr->ar_tha[i] = 0;
+  arphdr->ar_tip = tip;
+
+}*/
 
 /* Prints out formatted Ethernet address, e.g. 00:11:22:33:44:55 */
 void print_addr_eth(uint8_t *addr) {

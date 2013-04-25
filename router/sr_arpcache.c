@@ -32,10 +32,10 @@ void handle_arpreq(struct sr_arpcache* cache, struct sr_arpreq* req) {
   See the comments in the header file for an idea of what it should look like.
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
-	 /*struct sr_arpreq* req;
+	 struct sr_arpreq* req;
     for (req = sr->cache.requests; req != NULL; req = req->next) {
         handle_arpreq(&(sr->cache), req);
-    }*/
+    }
 }
 
 /* You should not need to touch the rest of this code. */
