@@ -49,6 +49,25 @@ uint8_t* arp_request_check(struct sr_instance* sr, uint8_t *buf, const char* nam
   return NULL;
 }
 
+void flip_ether(uint8_t *buf) {
+  sr_ethernet_hdr_t *ehdr = (sr_ethernet_hdr_t *)buf;
+  uint8_t scpy[ETHER_ADDR_LEN];
+  int i;
+  for(i = 0; i < ETHER_ADDR_LEN; i++){
+    scpy[i] = ehdr->ether_shost[i];
+    ehdr->ether_shost[i] = ehdr->ether_dhost[i];
+    ehdr->ether_dhost[i] = scpy[i];
+  }
+}
+
+void flip_ip(uint8_t *buf) {
+  flip_ether(buf);
+  sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(buf+sizeof(sr_ethernet_hdr_t *));
+  uint32_t ip_src_cpy = iphdr->ip_src;
+  iphdr->ip_src = iphdr->ip_dst;
+  iphdr->ip_dst = ip_src_cpy;
+}
+
 /* Prints out formatted Ethernet address, e.g. 00:11:22:33:44:55 */
 void print_addr_eth(uint8_t *addr) {
   int pos = 0;

@@ -35,6 +35,8 @@ uint16_t cksum(const void *_data, int len);
 uint16_t ethertype(uint8_t *buf);
 uint8_t ip_protocol(uint8_t *buf);
 uint8_t* arp_request_check(struct sr_instance* sr, uint8_t *buf, const char* name);
+void flip_ether(uint8_t *buf);
+void flip_ip(uint8_t *buf);
 
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);

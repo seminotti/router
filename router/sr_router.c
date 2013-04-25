@@ -121,8 +121,25 @@ void sr_handlepacket(struct sr_instance* sr,
   else{
     print_hdrs(packet, len);
     sr_ip_hdr_t *ip_hdr = (sr_ip_hdr_t *)(packet+sizeof(sr_ethernet_hdr_t));
-    if(cksum(packet+sizeof(sr_ethernet_hdr_t),ip_hdr->ip_hl*4) == 0xffff){
-      printf("*******YEEEEEEEESSSSSSSSS******");
+    if(cksum(packet+sizeof(sr_ethernet_hdr_t),ip_hdr->ip_hl*4) == 0xffff && ntohs(ip_hdr->ip_len) >= 20){
+      struct sr_if* get_iface = sr_get_interface(sr, interface);
+      if(ntohl(ip_hdr->ip_dst) == get_iface->ip){
+        if(ip_hdr->ip_p == ip_protocol_icmp){
+          printf("****Total length left**** %d\n", 0);
+          uint8_t *nex_buf = packet+sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t);
+          printf("********Checksum******** %d\n",cksum(nex_buf,4));
+          sr_icmp_hdr_t *icmp_hdr = (sr_icmp_hdr_t *)(nex_buf);
+          icmp_hdr->icmp_type = 0;
+ /*         flip_ip(packet);*/
+          sr_send_packet(sr, packet, len, interface);
+        }
+        else{
+
+        }
+      }
+      else{
+
+      }
     }
     else{
       printf("****NOOOOOOOOOOO*******");

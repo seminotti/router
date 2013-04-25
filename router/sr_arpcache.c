@@ -11,13 +11,31 @@
 #include "sr_if.h"
 #include "sr_protocol.h"
 
+void handle_arpreq(struct sr_arpcache* cache, struct sr_arpreq* req) {
+   time_t curtime = time(NULL);
+	if(difftime(curtime, req->sent) > 1.0) {
+		if(req->times_sent >= 5) {
+		    /*send icmp host unreachable to source addr of all pkts waiting on this request*/
+		    sr_arpreq_destroy(cache, req);
+		}
+		else {
+		    /*send arp request*/
+		    req->sent = curtime;
+		    req->times_sent++;
+		}
+	}
+}
+
 /* 
   This function gets called every second. For each request sent out, we keep
   checking whether we should resend an request or destroy the arp request.
   See the comments in the header file for an idea of what it should look like.
 */
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
-    /* Fill this in */
+	 /*struct sr_arpreq* req;
+    for (req = sr->cache.requests; req != NULL; req = req->next) {
+        handle_arpreq(&(sr->cache), req);
+    }*/
 }
 
 /* You should not need to touch the rest of this code. */
