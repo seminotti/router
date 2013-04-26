@@ -10,16 +10,36 @@
 #include "sr_router.h"
 #include "sr_if.h"
 #include "sr_protocol.h"
+#include "sr_utils.h"
 
-void handle_arpreq(struct sr_arpcache* cache, struct sr_arpreq* req) {
+void handle_arpreq(struct sr_instance *sr, struct sr_arpreq* req) {
    time_t curtime = time(NULL);
 	if(difftime(curtime, req->sent) > 1.0) {
-		if(req->times_sent >= 5) {
-		    /*send icmp host unreachable to source addr of all pkts waiting on this request*/
-		    sr_arpreq_destroy(cache, req);
+	   
+      struct sr_if* if_temp = sr_get_interface(sr, req->packets->iface);
+		
+      if(req->times_sent >= 5) {
+		    struct sr_arpentry* ent = sr_arpcache_lookup(&(sr->cache), req->ip);
+			 if(ent != NULL) {
+				 uint8_t* buf = build_icmp_reply(if_temp->ip, req->ip, if_temp->addr, ent->mac);
+		       if(buf != NULL)
+		       	 sr_send_packet(sr, buf, sizeof(sr_ethernet_hdr_t)+sizeof(sr_arp_hdr_t), req->packets->iface);
+				 sr_arpreq_destroy(&(sr->cache), req);
+			 }
+			 else {
+				 int i;
+             unsigned char temp[ETHER_ADDR_LEN];
+				 for(i=0; i<ETHER_ADDR_LEN; i++) temp[i] = 0x00;
+			    uint8_t* buf = build_icmp_reply(if_temp->ip, req->ip, if_temp->addr, temp);
+				 sr_arpcache_queuereq(&(sr->cache), req->ip, buf, sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t)+
+							sizeof(sr_icmp_t3_hdr_t), req->packets->iface);
+			 }
 		}
 		else {
-		    /*send arp request*/
+		    uint8_t* buf = build_arp_reply(if_temp->ip, req->ip, if_temp->addr);
+          print_hdrs(buf, sizeof(sr_ethernet_hdr_t)+sizeof(sr_arp_hdr_t));
+          if(buf != NULL)
+          	 sr_send_packet(sr, buf, sizeof(sr_ethernet_hdr_t)+sizeof(sr_arp_hdr_t), req->packets->iface);
 		    req->sent = curtime;
 		    req->times_sent++;
 		}
@@ -34,7 +54,7 @@ void handle_arpreq(struct sr_arpcache* cache, struct sr_arpreq* req) {
 void sr_arpcache_sweepreqs(struct sr_instance *sr) { 
 	 struct sr_arpreq* req;
     for (req = sr->cache.requests; req != NULL; req = req->next) {
-        handle_arpreq(&(sr->cache), req);
+        handle_arpreq(sr, req);
     }
 }
 

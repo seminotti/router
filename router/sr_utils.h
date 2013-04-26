@@ -37,6 +37,8 @@ uint8_t ip_protocol(uint8_t *buf);
 uint8_t* arp_request_check(struct sr_instance* sr, uint8_t *buf, const char* name);
 void flip_ether(uint8_t *buf);
 void flip_ip(uint8_t *buf);
+uint8_t* build_arp_reply(uint32_t sip, uint32_t tip, unsigned char* sha);
+uint8_t* build_icmp_reply(uint32_t sip, uint32_t tip, unsigned char* sha, unsigned char* tha);
 
 void print_addr_eth(uint8_t *addr);
 void print_addr_ip(struct in_addr address);

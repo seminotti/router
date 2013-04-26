@@ -68,13 +68,13 @@ void flip_ip(uint8_t *buf) {
   iphdr->ip_dst = ip_src_cpy;
 }
 
-/*uint8_t* build_arp_reply(uint32_t sip, uint32_t tip, unsigned char* sha) {
+uint8_t* build_arp_reply(uint32_t sip, uint32_t tip, unsigned char* sha) {
   unsigned char *buf = 0;
   if((buf = malloc(sizeof(sr_ethernet_hdr_t))+sizeof(sr_arp_hdr_t)) == 0) {
 	 fprintf(stderr,"Error: out of memory (sr_read_from_server)\n");
 	 return NULL;
   }
-  sr_ethernet_hdr_t *ethhdr = (sr_arp_ethernet_t *)(buf);
+  sr_ethernet_hdr_t *ethhdr = (sr_ethernet_hdr_t *)(buf);
   int i;  
   for(i=0; i<ETHER_ADDR_LEN; i++) ethhdr->ether_dhost[i] = 255;
   for(i=0; i<ETHER_ADDR_LEN; i++) ethhdr->ether_shost[i] = sha[i];
@@ -90,8 +90,49 @@ void flip_ip(uint8_t *buf) {
   arphdr->ar_sip = sip;
   for(i=0; i<ETHER_ADDR_LEN; i++) arphdr->ar_tha[i] = 0;
   arphdr->ar_tip = tip;
+  
+  return (uint8_t*) buf;
+}
 
-}*/
+uint8_t* build_icmp_reply(uint32_t sip, uint32_t tip, unsigned char* sha, unsigned char* tha) {
+  unsigned char *buf = 0;
+  if((buf = malloc(sizeof(sr_ethernet_hdr_t))+sizeof(sr_ip_hdr_t)+sizeof(sr_icmp_t3_hdr_t)) == 0) {
+	 fprintf(stderr,"Error: out of memory (sr_read_from_server)\n");
+	 return NULL;
+  }
+  /*ethernet*/
+  sr_ethernet_hdr_t *ethhdr = (sr_ethernet_hdr_t *)(buf);
+  int i;  
+  for(i=0; i<ETHER_ADDR_LEN; i++) ethhdr->ether_dhost[i] = tha[i];
+  for(i=0; i<ETHER_ADDR_LEN; i++) ethhdr->ether_shost[i] = sha[i];
+  ethhdr->ether_type = 2048;
+
+  /*ip*/
+  sr_ip_hdr_t *iphdr = (sr_ip_hdr_t *)(buf+sizeof(sr_ethernet_hdr_t));
+  iphdr->ip_v = 4;
+  iphdr->ip_hl = 5;
+  iphdr->ip_tos = 0;
+  iphdr->ip_len = 84;
+  iphdr->ip_id = 0;
+  iphdr->ip_off = 0;
+  iphdr->ip_ttl = 64;
+  iphdr->ip_p = 1;
+  iphdr->ip_sum = 0;
+  iphdr->ip_src = sip;
+  iphdr->ip_dst = tip;
+  iphdr->ip_sum = cksum(buf+sizeof(sr_ethernet_hdr_t),sizeof(sr_ip_hdr_t));
+
+  /*icmp*/
+  sr_icmp_t3_hdr_t *icmp_hdr = (sr_icmp_t3_hdr_t *)(buf+sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t));
+  icmp_hdr->icmp_type = 3;
+  icmp_hdr->icmp_code = 3;
+  icmp_hdr->icmp_sum = 0;
+  icmp_hdr->unused = 0;
+  icmp_hdr->next_mtu = 0;
+  icmp_hdr->icmp_sum = cksum(buf+sizeof(sr_ethernet_hdr_t)+sizeof(sr_ip_hdr_t),sizeof(sr_icmp_t3_hdr_t));
+  
+  return (uint8_t*) buf;
+}
 
 /* Prints out formatted Ethernet address, e.g. 00:11:22:33:44:55 */
 void print_addr_eth(uint8_t *addr) {
